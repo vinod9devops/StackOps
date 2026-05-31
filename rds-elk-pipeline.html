@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RDS to ELK Pipeline — Documentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --accent: #f78166;
+    --accent2: #79c0ff;
+    --accent3: #56d364;
+    --accent4: #d2a8ff;
+    --accent5: #ffa657;
+    --tag-bg: #1f3a4d;
+    --code-bg: #161b22;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 15px;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: 260px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    z-index: 100;
+    padding: 0 0 40px 0;
+  }
+
+  .sidebar-header {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-logo {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  .sidebar-title {
+    font-size: 13px;
+    color: var(--text2);
+    font-weight: 400;
+  }
+
+  .sidebar nav { padding: 16px 0; }
+
+  .nav-section {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text2);
+    padding: 12px 20px 4px;
+  }
+
+  .nav-link {
+    display: block;
+    padding: 6px 20px;
+    font-size: 13px;
+    color: var(--text2);
+    text-decoration: none;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+  }
+
+  .nav-link:hover, .nav-link.active {
+    color: var(--text);
+    background: var(--bg3);
+    border-left-color: var(--accent2);
+  }
+
+  .nav-link span {
+    display: inline-block;
+    width: 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    margin-right: 6px;
+  }
+
+  /* MAIN */
+  .main {
+    margin-left: 260px;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 48px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .topbar-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  .badge-aws { background: #2d1f00; color: var(--accent5); border: 1px solid #5a3e00; }
+  .badge-elk { background: #1a2a1a; color: var(--accent3); border: 1px solid #2d4d2d; }
+  .badge-version { background: #1f1a2e; color: var(--accent4); border: 1px solid #3d2d5e; }
+
+  .topbar-title {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text2);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .content {
+    padding: 48px 48px 80px;
+    max-width: 960px;
+  }
+
+  /* SECTIONS */
+  .section {
+    margin-bottom: 64px;
+    scroll-margin-top: 80px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    background: #2d0f0a;
+    border: 1px solid #5a1e14;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .section-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent2);
+    margin: 28px 0 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.02em;
+  }
+
+  h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent5);
+    margin: 20px 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  p { margin-bottom: 12px; color: var(--text); }
+
+  /* HERO */
+  .hero {
+    background: linear-gradient(135deg, #0d1f1a 0%, #0d1117 50%, #1a0d1f 100%);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 40px;
+    margin-bottom: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(86,211,100,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--accent3);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .hero h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin-bottom: 12px;
+    line-height: 1.2;
+  }
+
+  .hero p {
+    color: var(--text2);
+    font-size: 14px;
+    max-width: 560px;
+    margin-bottom: 24px;
+  }
+
+  .hero-stats {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--accent3);
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* ARCHITECTURE DIAGRAM */
+  .arch-diagram {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 28px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--accent3);
+    line-height: 1.8;
+    white-space: pre;
+    overflow-x: auto;
+    margin-bottom: 24px;
+  }
+
+  /* TABLES */
+  .table-wrap { overflow-x: auto; margin: 16px 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead tr {
+    background: var(--bg3);
+    border-bottom: 2px solid var(--border);
+  }
+
+  th {
+    text-align: left;
+    padding: 10px 16px;
+    font-weight: 600;
+    color: var(--text2);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  td code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--accent2);
+    background: var(--tag-bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  /* CODE BLOCKS */
+  .code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 12px 0 20px;
+  }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .code-lang {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .copy-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text2);
+    background: none;
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .copy-btn:hover { color: var(--text); border-color: var(--accent2); }
+
+  pre {
+    padding: 20px;
+    overflow-x: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  /* ERROR CARDS */
+  .error-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+
+  .error-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .error-cause {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 8px;
+  }
+
+  .error-fix {
+    font-size: 13px;
+    color: var(--accent3);
+  }
+
+  /* CALLOUT */
+  .callout {
+    background: #1a2a1a;
+    border: 1px solid #2d4d2d;
+    border-radius: 6px;
+    padding: 14px 18px;
+    font-size: 13px;
+    color: var(--accent3);
+    margin: 16px 0;
+    display: flex;
+    gap: 10px;
+  }
+
+  .callout-warn {
+    background: #2d1f00;
+    border-color: #5a3e00;
+    color: var(--accent5);
+  }
+
+  .callout-info {
+    background: #0d1f2d;
+    border-color: #1a3d5a;
+    color: var(--accent2);
+  }
+
+  /* GOALS LIST */
+  .goals-list {
+    list-style: none;
+    margin: 12px 0;
+  }
+
+  .goals-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  .goals-list li::before {
+    content: '▸';
+    color: var(--accent3);
+    font-size: 12px;
+    margin-top: 3px;
+    flex-shrink: 0;
+  }
+
+  /* INLINE CODE */
+  p code, li code, td code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--accent2);
+    background: var(--tag-bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  /* RESOURCE GRID */
+  .resource-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .resource-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+
+  .resource-key {
+    font-size: 11px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+
+  .resource-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--accent2);
+    word-break: break-all;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">CFT2 Platform</div>
+    <div class="sidebar-title">RDS → ELK Pipeline Docs</div>
+  </div>
+  <nav>
+    <div class="nav-section">Overview</div>
+    <a class="nav-link active" href="#requirement"><span>01</span>Requirement</a>
+    <a class="nav-link" href="#architecture"><span>02</span>Architecture Plan</a>
+    <div class="nav-section">Setup</div>
+    <a class="nav-link" href="#infrastructure"><span>03</span>AWS Infrastructure</a>
+    <a class="nav-link" href="#elasticsearch"><span>04</span>Elasticsearch Index</a>
+    <a class="nav-link" href="#lambda"><span>05</span>Lambda Implementation</a>
+    <a class="nav-link" href="#iam"><span>06</span>IAM &amp; Security</a>
+    <a class="nav-link" href="#eventbridge"><span>07</span>EventBridge Schedule</a>
+    <div class="nav-section">Operations</div>
+    <a class="nav-link" href="#testing"><span>08</span>Testing Guide</a>
+    <a class="nav-link" href="#debugging"><span>09</span>Debugging Guide</a>
+    <a class="nav-link" href="#kibana"><span>10</span>Kibana Dashboards</a>
+    <a class="nav-link" href="#appendix"><span>A</span>Appendix</a>
+  </nav>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <span class="topbar-badge badge-aws">AWS Lambda</span>
+    <span class="topbar-badge badge-elk">ELK 8.19.7</span>
+    <span class="topbar-badge badge-version">Python 3.12</span>
+    <span class="topbar-title">ap-southeast-1 · SGT (UTC+8)</span>
+  </div>
+
+  <div class="content">
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="hero-label">Pipeline Documentation · v1.0</div>
+      <h1>RDS to ELK<br>Daily Ingestion Pipeline</h1>
+      <p>Serverless daily snapshot pipeline ingesting all workflow states from Aurora PostgreSQL into Elasticsearch for historical dashboarding and trend analysis.</p>
+      <div class="hero-stats">
+        <div class="stat"><span class="stat-val">5,815</span><span class="stat-label">Docs / day</span></div>
+        <div class="stat"><span class="stat-val">~1.2 GB</span><span class="stat-label">Annual index size</span></div>
+        <div class="stat"><span class="stat-val">09:00</span><span class="stat-label">SGT daily run</span></div>
+        <div class="stat"><span class="stat-val">$0</span><span class="stat-label">Est. monthly cost</span></div>
+      </div>
+    </div>
+
+    <!-- 1. REQUIREMENT -->
+    <section class="section" id="requirement">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <h2 class="section-title">Requirement</h2>
+      </div>
+
+      <h3>// Business Need</h3>
+      <p>Daily ingestion of workflow and project data from an AWS Aurora PostgreSQL database into an Elasticsearch (ELK) stack for operational dashboarding and historical trend analysis.</p>
+
+      <h3>// Goals</h3>
+      <ul class="goals-list">
+        <li>Query all workflows regardless of status from the portal database daily</li>
+        <li>Forward results to Elasticsearch with a daily snapshot date (SGT)</li>
+        <li>Enable Kibana dashboards to filter by status, agency, zone, and date</li>
+        <li>Track historical state changes (Active → Inactive → Deleted) over time</li>
+        <li>Zero operational overhead — fully serverless and automated</li>
+      </ul>
+
+      <h3>// Data Source</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Property</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Database engine</td><td>AWS Aurora PostgreSQL</td></tr>
+          <tr><td>Database name</td><td><code>portal</code></td></tr>
+          <tr><td>Tables</td><td><code>workflow</code>, <code>project</code>, <code>lookup</code>, <code>application</code></td></tr>
+          <tr><td>Cluster ARN</td><td><code>arn:aws:rds:ap-southeast-1:058619734885:cluster:dbs-aurora-v2-cft2-prdmzdb-enginedb</code></td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>// Data Destination</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Property</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Elasticsearch endpoint</td><td><code>https://cftstackopsprd1.es.vpce.ap-southeast-1.aws.elastic-cloud.com:443</code></td></tr>
+          <tr><td>Index name</td><td><code>workflows-daily-snapshot</code></td></tr>
+          <tr><td>ELK version</td><td>8.19.7</td></tr>
+          <tr><td>Connectivity</td><td>VPCE (private, within AWS network)</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 2. ARCHITECTURE -->
+    <section class="section" id="architecture">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <h2 class="section-title">Architecture Plan</h2>
+      </div>
+
+      <div class="arch-diagram">EventBridge (cron: 0 1 * * ? *)
+    │
+    ▼  triggers daily at 01:00 UTC (09:00 SGT)
+Lambda Function (Python 3.12)
+    │
+    ├── Secrets Manager ──► portal DB secret (password)
+    ├── Secrets Manager ──► ES API key secret
+    │
+    ├── RDS Data API ──► Aurora PostgreSQL (portal DB)
+    │       └── paginated query (LIMIT 200 OFFSET n)
+    │
+    └── Elasticsearch Bulk API ──► workflows-daily-snapshot
+            └── VPCE (private, stays within AWS network)</div>
+
+      <h3>// Key Design Decisions</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Decision</th><th>Choice</th><th>Reason</th></tr></thead>
+        <tbody>
+          <tr><td>Compute</td><td>AWS Lambda</td><td>Serverless, zero ops, free at daily scale</td></tr>
+          <tr><td>DB connectivity</td><td>RDS Data API</td><td>No VPC port rules, no psycopg2 layer needed</td></tr>
+          <tr><td>Scheduling</td><td>EventBridge cron</td><td>Native AWS, reliable, no EC2 needed</td></tr>
+          <tr><td>Credentials</td><td>Secrets Manager</td><td>Secure, no plaintext in code or env vars</td></tr>
+          <tr><td>ES connectivity</td><td>VPCE</td><td>Private network, no internet exposure</td></tr>
+          <tr><td>Pagination</td><td>LIMIT/OFFSET 200</td><td>Avoids RDS Data API 1MB response limit</td></tr>
+          <tr><td>Deduplication</td><td>Composite <code>_id</code> = <code>workflow_id_YYYY-MM-DD</code></td><td>Same run can repeat safely (idempotent)</td></tr>
+          <tr><td>Data scope</td><td>All workflow statuses</td><td>Enables full historical and status analysis</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 3. INFRASTRUCTURE -->
+    <section class="section" id="infrastructure">
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <h2 class="section-title">AWS Infrastructure Setup</h2>
+      </div>
+
+      <h3>// 3.1 Lambda Function</h3>
+      <p>Console: <strong>Lambda → Create function</strong></p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Function name</td><td><code>rds-elk-workflows</code></td></tr>
+          <tr><td>Runtime</td><td>Python 3.12</td></tr>
+          <tr><td>Architecture</td><td>x86_64</td></tr>
+          <tr><td>Memory</td><td>128 MB</td></tr>
+          <tr><td>Timeout</td><td>5 minutes</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>// 3.2 VPC Configuration</h3>
+      <p>Console: <strong>Lambda → Configuration → VPC</strong></p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>VPC</td><td><code>vpc-060bcf283b3fc796f</code> (vpc-cft2-prod-prdez-monitoring)</td></tr>
+          <tr><td>Subnet A</td><td><code>subnet-0075b657584e282bc</code> (ap-southeast-1b)</td></tr>
+          <tr><td>Subnet B</td><td><code>subnet-03a9ac1b0d2894cfe</code> (ap-southeast-1a)</td></tr>
+          <tr><td>Security group</td><td><code>sg-03949cb6942248603</code> (sgrp-cft2-prd-ez-asa-canary)</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>// 3.3 Lambda Layer — Elasticsearch Client</h3>
+      <p>Build on AWS CloudShell:</p>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre># Clean and rebuild
+rm -rf elastic-layer elastic-layer.zip
+mkdir -p elastic-layer/python
+
+# Install elasticsearch v8 — must match ELK server version
+pip install "elasticsearch==8.17.2" -t elastic-layer/python/
+
+# Package
+cd elastic-layer
+zip -r ../elastic-layer.zip python/</pre>
+      </div>
+
+      <div class="callout callout-warn">⚠ The elasticsearch package major version must match your ELK server version. ELK 8.x requires elasticsearch==8.x. Using v9 on a v8 server causes media_type_header_exception errors.</div>
+
+      <p>Download: <strong>CloudShell → Actions → Download file</strong> → <code>/home/cloudshell-user/elastic-layer.zip</code></p>
+      <p>Upload: <strong>Lambda → Layers → Create layer</strong> → Name: <code>elasticsearch-python-v8</code> → Runtime: Python 3.12</p>
+      <p>Attach: <strong>Lambda → your function → Layers → Add a layer → Custom layers</strong></p>
+
+      <h3>// 3.4 Secrets Manager</h3>
+      <p><strong>Secret 1</strong> — Portal DB password (already exists, reuse as-is):</p>
+      <p><code>rds-db-credentials/cluster-CILSHCE5TCEAGJ2E4UWTGNUFTI/portaluser/1696488964620-oVVO3A</code></p>
+
+      <p><strong>Secret 2</strong> — ES API key (create new):</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Field</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Name</td><td><code>cft2-active-workflow-ingestion-stackops</code></td></tr>
+          <tr><td>Type</td><td>Other type of secret</td></tr>
+          <tr><td>Rotation</td><td>Disabled</td></tr>
+        </tbody>
+      </table></div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">json</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>{
+  "ES_API_KEY": "your-base64-encoded-api-key"
+}</pre>
+      </div>
+    </section>
+
+    <!-- 4. ELASTICSEARCH -->
+    <section class="section" id="elasticsearch">
+      <div class="section-header">
+        <span class="section-num">04</span>
+        <h2 class="section-title">Elasticsearch Index Setup</h2>
+      </div>
+
+      <h3>// 4.1 Create the Index</h3>
+      <p>Run in <strong>Kibana Dev Console</strong> (Menu → Dev Tools):</p>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">kibana</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>PUT /workflows-daily-snapshot
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 1
+  },
+  "mappings": {
+    "dynamic": false,
+    "properties": {
+      "@timestamp":                { "type": "date" },
+      "snapshot_date":             { "type": "date", "format": "yyyy-MM-dd" },
+      "agency_name":               { "type": "keyword" },
+      "project_name":              { "type": "keyword" },
+      "project_id":                { "type": "keyword" },
+      "project_created_at":        { "type": "date" },
+      "project_status":            { "type": "keyword" },
+      "workflow_name":             { "type": "keyword" },
+      "workflow_id":               { "type": "keyword" },
+      "workflow_created_at":       { "type": "date" },
+      "workflow_status":           { "type": "keyword" },
+      "sender_application_name":   { "type": "keyword" },
+      "sender_zone":               { "type": "keyword" },
+      "receiver_application_name": { "type": "keyword" },
+      "receiver_zone":             { "type": "keyword" }
+    }
+  }
+}</pre>
+      </div>
+
+      <h3>// 4.2 Create the API Key</h3>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">kibana</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>POST /_security/api_key
+{
+  "name": "lambda-workflows-indexer-v2",
+  "role_descriptors": {
+    "workflows_writer": {
+      "cluster": ["monitor"],
+      "indices": [
+        {
+          "names": ["workflows-active", "workflows-daily-snapshot"],
+          "privileges": ["create_index", "write", "monitor"]
+        }
+      ]
+    }
+  }
+}</pre>
+      </div>
+      <div class="callout callout-warn">⚠ Copy the <code>encoded</code> value immediately from the response. Store it in Secrets Manager. It will not be shown again.</div>
+
+      <h3>// 4.3 Field Type Reference</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Field</th><th>ES Type</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>@timestamp</code></td><td>date</td><td>Ingest timestamp (UTC)</td></tr>
+          <tr><td><code>snapshot_date</code></td><td>date (yyyy-MM-dd)</td><td>SGT date — primary dashboard filter</td></tr>
+          <tr><td><code>agency_name</code></td><td>keyword</td><td>Filter/group by agency</td></tr>
+          <tr><td><code>project_name</code></td><td>keyword</td><td>Filter/group by project</td></tr>
+          <tr><td><code>project_id</code></td><td>keyword</td><td>Exact match, join key</td></tr>
+          <tr><td><code>project_created_at</code></td><td>date</td><td>Project creation timeline</td></tr>
+          <tr><td><code>project_status</code></td><td>keyword</td><td>Active / Inactive / Deleted</td></tr>
+          <tr><td><code>workflow_name</code></td><td>keyword</td><td>Filter/group by workflow</td></tr>
+          <tr><td><code>workflow_id</code></td><td>keyword</td><td>Unique ID — used in composite _id</td></tr>
+          <tr><td><code>workflow_created_at</code></td><td>date</td><td>Workflow creation timeline</td></tr>
+          <tr><td><code>workflow_status</code></td><td>keyword</td><td>Active / Inactive / Deleted / Denied / Pending</td></tr>
+          <tr><td><code>sender_application_name</code></td><td>keyword</td><td>Source application filter</td></tr>
+          <tr><td><code>sender_zone</code></td><td>keyword</td><td>Source zone</td></tr>
+          <tr><td><code>receiver_application_name</code></td><td>keyword</td><td>Destination application filter</td></tr>
+          <tr><td><code>receiver_zone</code></td><td>keyword</td><td>Destination zone</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 5. LAMBDA -->
+    <section class="section" id="lambda">
+      <div class="section-header">
+        <span class="section-num">05</span>
+        <h2 class="section-title">Lambda Implementation</h2>
+      </div>
+
+      <h3>// Complete Function Code</h3>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">python</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>import json
+import datetime
+import boto3
+from elasticsearch import Elasticsearch, helpers
+
+# ---------- CONFIGURATION ----------
+session = boto3.Session()
+client  = session.client('rds-data')
+sm      = session.client('secretsmanager')
+
+db_cluster_arn = 'arn:aws:rds:ap-southeast-1:058619734885:cluster:dbs-aurora-v2-cft2-prdmzdb-enginedb'
+secret_arn     = 'arn:aws:secretsmanager:ap-southeast-1:058619734885:secret:rds-db-credentials/cluster-CILSHCE5TCEAGJ2E4UWTGNUFTI/portaluser/1696488964620-oVVO3A'
+es_secret_name = 'cft2-active-workflow-ingestion-stackops'
+database_name  = 'portal'
+es_index       = 'workflows-daily-snapshot'
+es_url         = 'https://cftstackopsprd1.es.vpce.ap-southeast-1.aws.elastic-cloud.com:443'
+BATCH_SIZE     = 200
+
+def get_es_api_key():
+    secret = sm.get_secret_value(SecretId=es_secret_name)
+    return json.loads(secret['SecretString'])['ES_API_KEY']
+
+def execute_query(sql):
+    response = client.execute_statement(
+        resourceArn=db_cluster_arn,
+        secretArn=secret_arn,
+        database=database_name,
+        sql=sql,
+        includeResultMetadata=True
+    )
+    columns = [col['name'] for col in response['columnMetadata']]
+    rows = []
+    for record in response['records']:
+        row = {}
+        for col, field in zip(columns, record):
+            val = list(field.values())[0] if field else None
+            if val == 'isNull':
+                val = None
+            row[col] = val
+        rows.append(row)
+    return rows
+
+def parse_date(value):
+    if not value:
+        return None
+    value = str(value).strip()
+    value = value.replace(' ', 'T')
+    if value.endswith('+00'):
+        value = value + ':00'
+    elif value.endswith('-00'):
+        value = value + ':00'
+    return value
+
+def fetch_all_rows():
+    all_rows = []
+    offset = 0
+    while True:
+        print(f"Fetching batch at offset {offset}...")
+        batch = execute_query(f"""
+            SELECT
+                agency.item_display_name         AS agency_name,
+                p.display_name                   AS project_name,
+                p.id::TEXT                       AS project_id,
+                p.created_at::TEXT               AS project_created_at,
+                project_status.item_display_name AS project_status,
+                w.display_name                   AS workflow_name,
+                w.id::TEXT                       AS workflow_id,
+                w.created_at::TEXT               AS workflow_created_at,
+                workflow_status.item_display_name AS workflow_status,
+                sender_app.display_name          AS sender_application_name,
+                sender_zone.item_display_name    AS sender_zone,
+                receiver_app.display_name        AS receiver_application_name,
+                receiver_zone.item_display_name  AS receiver_zone
+            FROM public.workflow w
+            INNER JOIN public.project p              ON w.project_id = p.id
+            INNER JOIN public.lookup agency          ON p.agency_id = agency.id
+            INNER JOIN public.lookup project_status  ON p.status_id = project_status.id
+            INNER JOIN public.lookup workflow_status ON w.status_id = workflow_status.id
+            INNER JOIN public.application sender_app ON w.sender_application_id = sender_app.id
+            INNER JOIN public.application receiver_app ON w.receiver_application_id = receiver_app.id
+            INNER JOIN public.lookup sender_zone     ON sender_app.zone_id = sender_zone.id
+            INNER JOIN public.lookup receiver_zone   ON receiver_app.zone_id = receiver_zone.id
+            ORDER BY agency.item_display_name, p.display_name, w.display_name
+            LIMIT {BATCH_SIZE} OFFSET {offset}
+        """)
+        print(f"Batch returned {len(batch)} rows")
+        if not batch:
+            break
+        all_rows.extend(batch)
+        offset += BATCH_SIZE
+        if len(batch) &lt; BATCH_SIZE:
+            break
+    return all_rows
+
+def lambda_handler(event, context):
+    print("Fetching all workflows from portal DB...")
+    rows = fetch_all_rows()
+    print(f"Total rows fetched: {len(rows)}")
+
+    now       = datetime.datetime.utcnow().isoformat()
+    sgt_today = (datetime.datetime.utcnow() + datetime.timedelta(hours=8)).strftime('%Y-%m-%d')
+    print(f"Snapshot date: {sgt_today}")
+
+    actions = []
+    for row in rows:
+        row["project_created_at"]  = parse_date(row.get("project_created_at"))
+        row["workflow_created_at"] = parse_date(row.get("workflow_created_at"))
+        row["@timestamp"]          = now
+        row["snapshot_date"]       = sgt_today
+        doc_id = f"{row['workflow_id']}_{sgt_today}"
+        actions.append({"_index": es_index, "_id": doc_id, "_source": row})
+
+    es_api_key = get_es_api_key()
+    es = Elasticsearch(es_url, api_key=es_api_key)
+
+    success, errors = helpers.bulk(es, actions, raise_on_error=False)
+    print(f"Indexed: {success}, Errors: {len(errors)}")
+    if errors:
+        print("Error details:", errors[:3])
+    return {"indexed": success, "errors": len(errors)}</pre>
+      </div>
+    </section>
+
+    <!-- 6. IAM -->
+    <section class="section" id="iam">
+      <div class="section-header">
+        <span class="section-num">06</span>
+        <h2 class="section-title">IAM &amp; Security Setup</h2>
+      </div>
+
+      <h3>// Policy 1 — rds-elk-workflows-policy</h3>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">json</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RDSDataAccess",
+      "Effect": "Allow",
+      "Action": ["rds-data:ExecuteStatement"],
+      "Resource": "arn:aws:rds:ap-southeast-1:058619734885:cluster:dbs-aurora-v2-cft2-prdmzdb-enginedb"
+    },
+    {
+      "Sid": "PortalSecretAccess",
+      "Effect": "Allow",
+      "Action": ["secretsmanager:GetSecretValue"],
+      "Resource": "arn:aws:secretsmanager:ap-southeast-1:058619734885:secret:rds-db-credentials/cluster-CILSHCE5TCEAGJ2E4UWTGNUFTI/portaluser/1696488964620-oVVO3A"
+    },
+    {
+      "Sid": "ESSecretAccess",
+      "Effect": "Allow",
+      "Action": ["secretsmanager:GetSecretValue"],
+      "Resource": "arn:aws:secretsmanager:ap-southeast-1:058619734885:secret:cft2-active-workflow-ingestion-stackops*"
+    }
+  ]
+}</pre>
+      </div>
+
+      <h3>// Policy 2 — lambda-vpc-network-policy</h3>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">json</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "LambdaVPCAccess",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateNetworkInterface",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DeleteNetworkInterface",
+        "ec2:AssignPrivateIpAddresses",
+        "ec2:UnassignPrivateIpAddresses"
+      ],
+      "Resource": "*"
+    }
+  ]
+}</pre>
+      </div>
+
+      <h3>// Security Summary</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Component</th><th>Method</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>RDS password</td><td>Secrets Manager</td><td>Existing secret, reused as-is</td></tr>
+          <tr><td>ES API key</td><td>Secrets Manager</td><td>Scoped to specific indices only</td></tr>
+          <tr><td>ES connectivity</td><td>VPCE</td><td>Private — no internet exposure</td></tr>
+          <tr><td>RDS connectivity</td><td>RDS Data API</td><td>IAM-authenticated, no open DB ports</td></tr>
+          <tr><td>Lambda env vars</td><td>None used for secrets</td><td>All secrets in Secrets Manager</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 7. EVENTBRIDGE -->
+    <section class="section" id="eventbridge">
+      <div class="section-header">
+        <span class="section-num">07</span>
+        <h2 class="section-title">EventBridge Schedule</h2>
+      </div>
+
+      <p>Console: <strong>EventBridge → Schedules → Create schedule</strong></p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Field</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Name</td><td><code>cft2-active-workflow-daily-ingestion</code></td></tr>
+          <tr><td>Schedule type</td><td>Cron-based</td></tr>
+          <tr><td>Cron expression</td><td><code>0 1 * * ? *</code></td></tr>
+          <tr><td>Runs at</td><td>01:00 UTC = 09:00 SGT daily</td></tr>
+          <tr><td>Target</td><td>Lambda function <code>rds-elk-workflows</code></td></tr>
+          <tr><td>Payload</td><td><code>{}</code></td></tr>
+          <tr><td>Retry attempts</td><td>2</td></tr>
+          <tr><td>Max event age</td><td>1 hour</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 8. TESTING -->
+    <section class="section" id="testing">
+      <div class="section-header">
+        <span class="section-num">08</span>
+        <h2 class="section-title">Testing Guide</h2>
+      </div>
+
+      <h3>// 8.1 Manual Lambda Test</h3>
+      <p>Console: <strong>Lambda → Test tab</strong> → Event JSON: <code>{}</code> → Click Test</p>
+
+      <p>Expected successful response:</p>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">json</span></div>
+        <pre>{ "indexed": 5815, "errors": 0 }</pre>
+      </div>
+
+      <p>Expected CloudWatch log pattern:</p>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">log</span></div>
+        <pre>Fetching all workflows from portal DB...
+Fetching batch at offset 0...
+Batch returned 200 rows
+Fetching batch at offset 200...
+...
+Total rows fetched: 5815
+Snapshot date: 2026-05-31
+Indexed: 5815, Errors: 0</pre>
+      </div>
+
+      <h3>// 8.2 Elasticsearch Verification Queries</h3>
+
+      <h4>Check document count</h4>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">kibana</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>GET /workflows-daily-snapshot/_count</pre>
+      </div>
+
+      <h4>Preview a sample document</h4>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">kibana</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>GET /workflows-daily-snapshot/_search
+{ "size": 1 }</pre>
+      </div>
+
+      <h4>Status breakdown aggregation</h4>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">kibana</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>GET /workflows-daily-snapshot/_search
+{
+  "size": 0,
+  "aggs": {
+    "by_workflow_status": { "terms": { "field": "workflow_status" } },
+    "by_project_status":  { "terms": { "field": "project_status" } }
+  }
+}</pre>
+      </div>
+
+      <h4>Filter by snapshot date</h4>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">kibana</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>GET /workflows-daily-snapshot/_search
+{
+  "query": { "term": { "snapshot_date": "2026-05-31" } },
+  "size": 0,
+  "aggs": { "by_status": { "terms": { "field": "workflow_status" } } }
+}</pre>
+      </div>
+
+      <h4>Active workflows for a specific agency</h4>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">kibana</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>GET /workflows-daily-snapshot/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        { "term": { "workflow_status": "Active" } },
+        { "term": { "agency_name": "AGC" } }
+      ]
+    }
+  }
+}</pre>
+      </div>
+    </section>
+
+    <!-- 9. DEBUGGING -->
+    <section class="section" id="debugging">
+      <div class="section-header">
+        <span class="section-num">09</span>
+        <h2 class="section-title">Debugging Guide</h2>
+      </div>
+
+      <h3>// 9.1 Common Errors and Fixes</h3>
+
+      <div class="error-card">
+        <div class="error-title">UnsupportedResultException — result exceeds size limit 1MB</div>
+        <div class="error-cause">Cause: RDS Data API caps response at 1MB per call.</div>
+        <div class="error-fix">Fix: Reduce BATCH_SIZE to 100 in the Lambda configuration.</div>
+        <div class="code-block" style="margin-top:10px">
+          <div class="code-header"><span class="code-lang">python</span></div>
+          <pre>BATCH_SIZE = 100  # reduce if still hitting limit</pre>
+        </div>
+      </div>
+
+      <div class="error-card">
+        <div class="error-title">media_type_header_exception — Accept version must be 8 or 7, but found 9</div>
+        <div class="error-cause">Cause: elasticsearch Python package v9 installed but server is v8.</div>
+        <div class="error-fix">Fix: Rebuild Lambda layer with elasticsearch==8.17.2 exactly.</div>
+        <div class="code-block" style="margin-top:10px">
+          <div class="code-header"><span class="code-lang">bash</span></div>
+          <pre>pip install "elasticsearch==8.17.2" -t elastic-layer/python/</pre>
+        </div>
+      </div>
+
+      <div class="error-card">
+        <div class="error-title">security_exception — action unauthorized for API key on indices [index-name]</div>
+        <div class="error-cause">Cause: API key was scoped to a different index name.</div>
+        <div class="error-fix">Fix: Create a new API key with correct index names in privileges, update Secrets Manager.</div>
+      </div>
+
+      <div class="error-card">
+        <div class="error-title">document_parsing_exception — failed to parse date field [2024-03-08 04:23:51+00]</div>
+        <div class="error-cause">Cause: PostgreSQL returns timestamps with space separator and short timezone +00. ES expects T separator and full +00:00.</div>
+        <div class="error-fix">Fix: Ensure parse_date() is applied to both project_created_at and workflow_created_at fields.</div>
+        <div class="code-block" style="margin-top:10px">
+          <div class="code-header"><span class="code-lang">python</span></div>
+          <pre>row["project_created_at"]  = parse_date(row.get("project_created_at"))
+row["workflow_created_at"] = parse_date(row.get("workflow_created_at"))</pre>
+        </div>
+      </div>
+
+      <div class="error-card">
+        <div class="error-title">execution role does not have permissions to call CreateNetworkInterface on EC2</div>
+        <div class="error-cause">Cause: Lambda execution role missing VPC network policy.</div>
+        <div class="error-fix">Fix: Attach lambda-vpc-network-policy inline policy (see Section 6).</div>
+      </div>
+
+      <h3>// 9.2 CloudWatch Log Queries</h3>
+      <p>Console: <strong>CloudWatch → Log groups → /aws/lambda/rds-elk-workflows</strong></p>
+
+      <h4>Filter errors only</h4>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">cloudwatch insights</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>fields @timestamp, @message
+| filter @message like /Error/
+| sort @timestamp desc
+| limit 20</pre>
+      </div>
+
+      <h4>Check indexed counts over time</h4>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">cloudwatch insights</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>fields @timestamp, @message
+| filter @message like /Indexed/
+| sort @timestamp desc
+| limit 30</pre>
+      </div>
+
+      <div class="callout callout-info">ℹ The pipeline is fully idempotent. Re-running on the same day overwrites existing documents using the composite _id. Safe to trigger manually at any time.</div>
+    </section>
+
+    <!-- 10. KIBANA -->
+    <section class="section" id="kibana">
+      <div class="section-header">
+        <span class="section-num">10</span>
+        <h2 class="section-title">Kibana Dashboard Guide</h2>
+      </div>
+
+      <h3>// 10.1 Create Data View</h3>
+      <p>Kibana → Stack Management → Data Views → Create data view</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Field</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Name</td><td><code>Workflows Daily Snapshot</code></td></tr>
+          <tr><td>Index pattern</td><td><code>workflows-daily-snapshot</code></td></tr>
+          <tr><td>Timestamp field</td><td><code>snapshot_date</code></td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>// 10.2 Useful KQL Filters</h3>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">kql — active workflows today</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>workflow_status: "Active" AND snapshot_date: "2026-05-31"</pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">kql — by agency</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>agency_name: "AGC" AND snapshot_date: "2026-05-31"</pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">kql — zone pair</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>sender_zone: "Intranet" AND receiver_zone: "Internet"</pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">kql — new workflows this year</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>workflow_created_at >= "2026-01-01"</pre>
+      </div>
+
+      <h3>// 10.3 Recommended Visualisations</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Visualisation</th><th>Type</th><th>Fields</th></tr></thead>
+        <tbody>
+          <tr><td>Active workflow count trend</td><td>Line chart</td><td><code>snapshot_date</code> (x), count (y), filter Active</td></tr>
+          <tr><td>Workflows by agency</td><td>Horizontal bar</td><td><code>agency_name</code> terms aggregation</td></tr>
+          <tr><td>Status breakdown</td><td>Pie chart</td><td><code>workflow_status</code> terms aggregation</td></tr>
+          <tr><td>Zone traffic heatmap</td><td>Data table</td><td><code>sender_zone</code> + <code>receiver_zone</code></td></tr>
+          <tr><td>New workflows this month</td><td>Metric</td><td>filter <code>workflow_created_at</code> last 30 days</td></tr>
+          <tr><td>Status changes over time</td><td>Data table</td><td>Same <code>workflow_id</code> across two <code>snapshot_date</code> values</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- APPENDIX -->
+    <section class="section" id="appendix">
+      <div class="section-header">
+        <span class="section-num">A</span>
+        <h2 class="section-title">Appendix — Resource Reference</h2>
+      </div>
+      <div class="resource-grid">
+        <div class="resource-card"><div class="resource-key">Lambda Function</div><div class="resource-val">rds-elk-workflows</div></div>
+        <div class="resource-card"><div class="resource-key">Lambda Runtime</div><div class="resource-val">Python 3.12 / x86_64</div></div>
+        <div class="resource-card"><div class="resource-key">Lambda Layer</div><div class="resource-val">elasticsearch-python-v8 (8.17.2)</div></div>
+        <div class="resource-card"><div class="resource-key">VPC</div><div class="resource-val">vpc-060bcf283b3fc796f</div></div>
+        <div class="resource-card"><div class="resource-key">Subnets</div><div class="resource-val">subnet-0075b657584e282bc<br>subnet-03a9ac1b0d2894cfe</div></div>
+        <div class="resource-card"><div class="resource-key">Security Group</div><div class="resource-val">sg-03949cb6942248603</div></div>
+        <div class="resource-card"><div class="resource-key">ES API Key Secret</div><div class="resource-val">cft2-active-workflow-ingestion-stackops</div></div>
+        <div class="resource-card"><div class="resource-key">ES Index</div><div class="resource-val">workflows-daily-snapshot</div></div>
+        <div class="resource-card"><div class="resource-key">EventBridge Rule</div><div class="resource-val">cft2-active-workflow-daily-ingestion</div></div>
+        <div class="resource-card"><div class="resource-key">Schedule</div><div class="resource-val">cron(0 1 * * ? *) = 09:00 SGT</div></div>
+        <div class="resource-card"><div class="resource-key">Daily Volume</div><div class="resource-val">~5,815 documents</div></div>
+        <div class="resource-card"><div class="resource-key">Annual Index Size</div><div class="resource-val">~1.2 GB</div></div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    navigator.clipboard.writeText(pre.textContent).then(() => {
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 2000);
+    });
+  }
+
+  // Active nav link on scroll
+  const sections = document.querySelectorAll('.section');
+  const navLinks = document.querySelectorAll('.nav-link');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.nav-link[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { threshold: 0.3 });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
